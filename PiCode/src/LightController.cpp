@@ -1,4 +1,5 @@
 #include "LightController.h"
+#include "NetworkCommands.h"
 #include <unistd.h>
 
 using namespace std;
@@ -8,7 +9,8 @@ using namespace SWE4211RPi;
 
 LightController::LightController(int gpioOutPin, int gpioInPin,
 		SWE4211RPi::CommandQueue *queue, std::string threadName,
-		uint32_t period): PeriodicTask (threadName, period, PRIORITY){
+		uint32_t period) :
+		PeriodicTask(threadName, period, PRIORITY) {
 
 	this->light = new GPIO(gpioOutPin, GPIO::GPIO_OUT);
 	this->pushbutton = new GPIO(gpioInPin, GPIO::GPIO_IN);
@@ -32,17 +34,17 @@ void LightController::taskMethod() {
 			switch (item.command) {
 
 			//Update PWM cycle
-			case 0x01000000:
-
+			case LIGHTPWMADJUSTMENTCMD:
+				this->setTaskPeriod(this->getPriority() | 0x01000000);
 				break;
 
 				//Turns on the light
-			case 0x00100000:
+			case LIGHTONCMD:
 				this->light->setValue(GPIO::GPIO_LOW);
 				break;
 
 				//Turns the light off
-			case 0x00010000:
+			case LIGHTOFFCMD:
 				this->light->setValue(GPIO::GPIO_HIGH);
 				break;
 
