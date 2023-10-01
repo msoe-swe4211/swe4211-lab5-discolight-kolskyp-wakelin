@@ -1,30 +1,33 @@
-#include <"NetworkManger.h">
+#include "NetworkManager.h"
 
-using namespace SWE4211Rpi;
+namespace SWE4211RPi {
+	NetworkManager::NetworkManager(unsigned short port, CommandQueue *queue[],
+			std::string threadName):
+				RunnableClass(threadName,50){
+		this->portNumber = port;
+		this->referencequeue=queue;
 
-NetworkManager::NetworkManager(unsigned short port, CommandQueue *queue[],
-		std::string threadName) {
+	}
 
-}
+	void NetworkManager::run() {
 
-void NetworkManager::run() {
+	}
 
-}
+	void NetworkManager::stop() {
 
-void NetworkManager::stop() {
+	}
 
-}
+	int NetworkManager::getSocketID() {
 
-int NetworkManager::getSocketID() {
+	}
 
-}
+	int NetworkManager::processReceivedMessage(
+			networkMessageStruct &receivedMessage) {
 
-int NetworkManager::processReceivedMessage(
-		networkMessageStruct &receivedMessage) {
+	}
 
-}
+	void NetworkManager::reportNewClientConnection(
+			const struct sockaddr_in &clientAddress) {
 
-void NetworkManager::reportNewClientConnection(
-		const struct sockaddr_in &clientAddress){
-
+	}
 }
