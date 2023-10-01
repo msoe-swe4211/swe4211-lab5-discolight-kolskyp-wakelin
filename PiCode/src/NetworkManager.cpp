@@ -1,4 +1,5 @@
 #include "NetworkManager.h"
+#include "networkMessage.h"
 #include <sys/socket.h>
 
 namespace SWE4211RPi {
@@ -8,29 +9,28 @@ namespace SWE4211RPi {
 	}
 
 	void NetworkManager::run() {
-		// create thread
-		
 		// create socket
 		struct sockaddr_in address;
 		address.sin_family = AF_INET;
     		address.sin_addr.s_addr = INADDR_ANY;
-    		address.sin_port = htons(8000); // how do i know the #?
+    		address.sin_port = htons(portNumber);
 		int addrlen = sizeof(address);
 
 		int sockfd = socket(AF_INET, SOCK_STREAM, 0);
-		int bind(sockfd, (struct sockaddr*)&address, sizeof(address));
+		int bind(sockfd, (struct sockaddr*)&address, addrlen);
+
+		// Listen
+		listen(sockfd, 2); 
 		
 		while (keepGoing) {
-			// Listen
-			listen(sockfd, 10);  // Unsure on 10
 			int conn = accept(sockfd, (struct sockaddr*)&address, (socklen_t*)&addrlen));
-				
-			// Convert to networkMessage
-			struct networkMessageStruct networkMessage;
-			int32_t message, messageDestination, messageID, param1, param2, securityMode, timestampHigh, timestampLow, xorChecksum;
+
+			NetworkMessage message;
+            		ssize_t bytesRead = recv(connectedSocket, &message, sizeof(NetworkMessage), 0);
+			message = htonl(message);
 			
 			// Send to processer
-			processReceivedMessage(&netowkrMessage);
+			processReceivedMessage(message);
 		}
 	}
 
