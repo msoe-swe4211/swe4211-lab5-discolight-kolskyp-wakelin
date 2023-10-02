@@ -28,29 +28,19 @@ void LightController::taskMethod() {
 
 		//Read command from the queue
 		if (this->referencequeue->hasItem()) {
-
 			auto item = referencequeue->dequeue();
-
-			switch (item.command) {
-
-			//Update PWM cycle
-			case LIGHTPWMADJUSTMENTCMD:
-				this->setTaskPeriod(this->getPriority() | 0x01000000);
-				break;
-
-				//Turns on the light
-			case LIGHTONCMD:
+			
+			if (item.command & LIGHTPWMADJUSTMENTCMD == LIGHTPWMADJUSTMENTCMD) {
+				// Update PWM Cycle
+				this->setTaskPeriod(item.command & 0x000000FF);
+				
+			} else if (item.command & LIGHTONCMD == LIGHTONCMD) {
+				// Light on
 				this->light->setValue(GPIO::GPIO_LOW);
-				break;
-
-				//Turns the light off
-			case LIGHTOFFCMD:
+				
+			} else if (item.command & LIGHTOFFCMD == LIGHTOFFCMD) {
+				// Light off
 				this->light->setValue(GPIO::GPIO_HIGH);
-				break;
-
-				//Invalid command
-			default:
-				break;
 			}
 		}
 
