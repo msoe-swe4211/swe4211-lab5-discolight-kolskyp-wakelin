@@ -29,16 +29,20 @@ void LightController::taskMethod() {
 		//Read command from the queue
 		if (this->referencequeue->hasItem()) {
 			auto item = referencequeue->dequeue();
+			int commandToRun = item.command & 0xFFFF0000;
 			
-			if (item.command & LIGHTPWMADJUSTMENTCMD == LIGHTPWMADJUSTMENTCMD) {
+			if (commandToRun == LIGHTPWMADJUSTMENTCMD) {
 				// Update PWM Cycle
-				this->setTaskPeriod(item.command & 0x000000FF);
+				int dCycle = item.command & 0x000000FF;
+				if (dCycle >= 0 && dCycle <= 100){
+					this->dutyCycle = dCycle;
+				}
 				
-			} else if (item.command & LIGHTONCMD == LIGHTONCMD) {
+			} else if (commandToRun == LIGHTONCMD) {
 				// Light on
 				this->light->setValue(GPIO::GPIO_LOW);
 				
-			} else if (item.command & LIGHTOFFCMD == LIGHTOFFCMD) {
+			} else if (commandToRun == LIGHTOFFCMD) {
 				// Light off
 				this->light->setValue(GPIO::GPIO_HIGH);
 			}
