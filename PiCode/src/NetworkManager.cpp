@@ -7,10 +7,24 @@ NetworkManager::NetworkManager(unsigned short port, CommandQueue *queue[],
 		RunnableClass(threadName, 50) {
 	this->portNumber = port;
 	this->referencequeue = queue;
+}
+
+NetworkManager::~NetworkManager() {
+}
+
+void NetworkManager::run() {
 
 	//Create new socket
 	if ((server_fd = socket(AF_INET, SOCK_STREAM, 0)) < 0) {
 		perror("Socket failed");
+		exit(1);
+	}
+
+	//Set the socket options
+	int opt = 1;
+	if (setsockopt(server_fd, SOL_SOCKET, SO_REUSEADDR | SO_REUSEPORT, &opt,
+			sizeof(opt))) {
+		perror("Failed to set the socket options.");
 		exit(1);
 	}
 
@@ -19,7 +33,7 @@ NetworkManager::NetworkManager(unsigned short port, CommandQueue *queue[],
 	int addrlen = sizeof(address);
 	bzero((char*) &address, addrlen);
 	address.sin_family = AF_INET;
-	address.sin_port = htons(port);
+	address.sin_port = htons(portNumber);
 	address.sin_addr.s_addr = INADDR_ANY;
 
 	//Bind the socket to the given port
@@ -28,36 +42,50 @@ NetworkManager::NetworkManager(unsigned short port, CommandQueue *queue[],
 		exit(1);
 	}
 
-	//Accept new connection
-	connectedSocket = accept(server_fd, (struct sockaddr*) &address,
-			(socklen_t*) &addrlen);
-
-	// Listen
-	listen(server_fd, 2);
-}
-
-void NetworkManager::run() {
-
 	while (keepGoing) {
+
+		// Listen for connections
+		listen(server_fd, 2);
+
+		//Accept new connection
+		if ((connectedSocket = accept(server_fd, (struct sockaddr*) &address,
+				(socklen_t*) &addrlen) < 0)) {
+
+			perror("Error while accepting connection.");
+			exit(1);
+		}
+
+		//Report the connection
+		reportNewClientConnection(address);
 
 		networkMessageStruct message;
 		ssize_t bytesRead = recv(connectedSocket, &message,
 				sizeof(networkMessageStruct), 0);
 
-		//Convert endiannes
-		message.securityMode = ntohl(message.securityMode);
-		message.messageID = ntohl(message.messageID);
-		message.timestampHigh = ntohl(message.timestampHigh);
-		message.timestampLow = ntohl(message.timestampLow);
-		message.messageType = ntohl(message.messageType);
-		message.messageDestination = ntohl(message.messageDestination);
-		message.message = ntohl(message.message);
-		message.parameter1 = ntohl(message.parameter1);
-		message.parameter2 = ntohl(message.parameter2);
-		message.xorChecksum = ntohl(message.xorChecksum);
+		while (true) {
 
-		// Send to processer
-		processReceivedMessage(message);
+			if (bytesRead == 0) {
+				break;
+			}
+			//Got full message
+			else if (bytesRead == 320) {
+
+				//Convert endiannes
+				message.securityMode = ntohl(message.securityMode);
+				message.messageID = ntohl(message.messageID);
+				message.timestampHigh = ntohl(message.timestampHigh);
+				message.timestampLow = ntohl(message.timestampLow);
+				message.messageType = ntohl(message.messageType);
+				message.messageDestination = ntohl(message.messageDestination);
+				message.message = ntohl(message.message);
+				message.parameter1 = ntohl(message.parameter1);
+				message.parameter2 = ntohl(message.parameter2);
+				message.xorChecksum = ntohl(message.xorChecksum);
+
+				// Send to processer
+				processReceivedMessage(message);
+			}
+		}
 	}
 }
 

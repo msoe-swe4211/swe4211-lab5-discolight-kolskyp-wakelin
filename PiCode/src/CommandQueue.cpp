@@ -7,6 +7,9 @@ CommandQueue::CommandQueue() {
 	sem_init(&queueCountSemaphore, 0, 0);
 }
 
+CommandQueue::~CommandQueue() {
+}
+
 bool CommandQueue::hasItem() {
 	unique_lock < mutex > lck(queueMutex);
 	int semValue;
