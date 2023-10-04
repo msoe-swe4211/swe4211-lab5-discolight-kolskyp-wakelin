@@ -5,14 +5,14 @@
 using namespace std;
 using namespace SWE4211RPi;
 
-#define PRIORITY 50
+#define PRIORITY 1
 
 LightController::LightController(int gpioOutPin, int gpioInPin,
 		SWE4211RPi::CommandQueue *queue, std::string threadName,
 		uint32_t period) :
 		PeriodicTask(threadName, period, PRIORITY) {
 
-	this->light = new GPIO(gpioOutPin, GPIO::GPIO_OUT);
+	this->light = new GPIO(gpioOutPin, GPIO::GPIO_OUT, GPIO::GPIO_HIGH);
 	this->pushbutton = new GPIO(gpioInPin, GPIO::GPIO_IN);
 	this->referencequeue = queue;
 }
@@ -23,35 +23,39 @@ LightController::~LightController() {
 }
 
 void LightController::taskMethod() {
-	while (true) {
-		usleep(10);
 
 		//Read command from the queue
 		if (this->referencequeue->hasItem()) {
 			auto item = referencequeue->dequeue();
 			int commandToRun = item.command & 0xFFFF0000;
-			
+
 			if (commandToRun == LIGHTPWMADJUSTMENTCMD) {
 				// Update PWM Cycle
 				int dCycle = item.command & 0x000000FF;
-				if (dCycle >= 0 && dCycle <= 100){
+				if (dCycle >= 0 && dCycle <= 100) {
 					this->dutyCycle = dCycle;
 				}
-				
+
 			} else if (commandToRun == LIGHTONCMD) {
 				// Light on
-				this->light->setValue(GPIO::GPIO_LOW);
-				
+				lampOn = true;
+
 			} else if (commandToRun == LIGHTOFFCMD) {
 				// Light off
-				this->light->setValue(GPIO::GPIO_HIGH);
+				lampOn = false;
 			}
 		}
 
 		//Check the button
 		if (this->pushbutton->getValue() == GPIO::GPIO_LOW) {
+				this->light->setValue(GPIO::GPIO_LOW);
+		}
+		else if (lampOn) {
 			this->light->setValue(GPIO::GPIO_LOW);
+			usleep((getTaskPeriod() * dutyCycle) / 100);
+			this->light->setValue(GPIO::GPIO_HIGH);
+		} else {
+			this->light->setValue(GPIO::GPIO_HIGH);
 		}
 	}
-}
 

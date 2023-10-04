@@ -1,10 +1,11 @@
 #include "NetworkManager.h"
 #include <strings.h>
+#include <iostream>
 
 namespace SWE4211RPi {
 NetworkManager::NetworkManager(unsigned short port, CommandQueue *queue[],
 		std::string threadName) :
-		RunnableClass(threadName, 50) {
+		RunnableClass(threadName, 1) {
 	this->portNumber = port;
 	this->referencequeue = queue;
 }
@@ -29,62 +30,58 @@ void NetworkManager::run() {
 	}
 
 	//Declare the port and the address
-	sockaddr_in address;
-	int addrlen = sizeof(address);
-	bzero((char*) &address, addrlen);
+	sockaddr_in address = { 0 };
 	address.sin_family = AF_INET;
 	address.sin_port = htons(portNumber);
 	address.sin_addr.s_addr = INADDR_ANY;
 
 	//Bind the socket to the given port
-	if (bind(server_fd, (struct sockaddr*) &address, addrlen) < 0) {
+	if (bind(server_fd, (struct sockaddr*) &address, sizeof(address)) < 0) {
 		perror("Binding failed");
+		exit(1);
+	}
+	// Listen for connections
+	listen(server_fd, 1);
+	unsigned int addrlen = sizeof(address);
+
+	//Accept new connection
+	if ((connectedSocket = accept(server_fd, (struct sockaddr*) &address,
+			&addrlen)) < 0) {
+
+		perror("Error while accepting connection.");
 		exit(1);
 	}
 
 	while (keepGoing) {
 
-		// Listen for connections
-		listen(server_fd, 2);
+		struct networkMessageStruct message;
+		networkMessageStruct *buffer = &message;
 
-		//Accept new connection
-		if ((connectedSocket = accept(server_fd, (struct sockaddr*) &address,
-				(socklen_t*) &addrlen) < 0)) {
+		ssize_t bytesRead = recvfrom(connectedSocket, (void*) &buffer[0],
+				sizeof(struct networkMessageStruct), MSG_WAITALL, nullptr,
+				nullptr);
 
-			perror("Error while accepting connection.");
-			exit(1);
+		if (bytesRead == 0) {
+			this->stop();
 		}
 
-		//Report the connection
-		reportNewClientConnection(address);
+		//Got full message
+		else {
 
-		networkMessageStruct message;
-		ssize_t bytesRead = recv(connectedSocket, &message,
-				sizeof(networkMessageStruct), 0);
+			//Convert endiannes
+			message.securityMode = ntohl(message.securityMode);
+			message.messageID = ntohl(message.messageID);
+			message.timestampHigh = ntohl(message.timestampHigh);
+			message.timestampLow = ntohl(message.timestampLow);
+			message.messageType = ntohl(message.messageType);
+			message.messageDestination = ntohl(message.messageDestination);
+			message.message = ntohl(message.message);
+			message.parameter1 = ntohl(message.parameter1);
+			message.parameter2 = ntohl(message.parameter2);
+			message.xorChecksum = ntohl(message.xorChecksum);
 
-		while (true) {
-
-			if (bytesRead == 0) {
-				break;
-			}
-			//Got full message
-			else if (bytesRead == 320) {
-
-				//Convert endiannes
-				message.securityMode = ntohl(message.securityMode);
-				message.messageID = ntohl(message.messageID);
-				message.timestampHigh = ntohl(message.timestampHigh);
-				message.timestampLow = ntohl(message.timestampLow);
-				message.messageType = ntohl(message.messageType);
-				message.messageDestination = ntohl(message.messageDestination);
-				message.message = ntohl(message.message);
-				message.parameter1 = ntohl(message.parameter1);
-				message.parameter2 = ntohl(message.parameter2);
-				message.xorChecksum = ntohl(message.xorChecksum);
-
-				// Send to processer
-				processReceivedMessage(message);
-			}
+			// Send to processer
+			processReceivedMessage(message);
 		}
 	}
 }

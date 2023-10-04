@@ -8,10 +8,10 @@ CommandQueue::CommandQueue() {
 }
 
 CommandQueue::~CommandQueue() {
+	sem_destroy(&queueCountSemaphore);
 }
 
 bool CommandQueue::hasItem() {
-	unique_lock < mutex > lck(queueMutex);
 	int semValue;
 	sem_getvalue(&queueCountSemaphore, &semValue);
 
@@ -22,15 +22,15 @@ bool CommandQueue::hasItem() {
 }
 
 CommandQueueEntry CommandQueue::dequeue() {
-	unique_lock < mutex > lck(queueMutex);
 	sem_wait(&queueCountSemaphore);
+	unique_lock < mutex > lock(queueMutex);
 	auto ret = commandQueueContents.front();
 	commandQueueContents.pop();
 	return ret;
 }
 
 void CommandQueue::enqueue(CommandQueueEntry value) {
-	unique_lock < mutex > lck(queueMutex);
+	unique_lock < mutex > lock(queueMutex);
 	commandQueueContents.push(value);
 	sem_post(&queueCountSemaphore);
 }
